@@ -18,6 +18,18 @@ class Web:
         self.user = user
         self.queque = []
         self.urlPattern = f"http://{self.host}:{self.port}/webhdfs/v1/"
+        os.curdir = self.localPath
+        url = self.urlPattern
+        response = ""
+        url += f"{self.path}?\\user.name={self.user}&op=LISTSTATUS"
+        try:
+            response = requests.Session().get(url)
+        except ConnectionError:
+            print("Произошла ошибка при подключении.")
+        if response.status_code == http_client.OK:
+            for fileStatus in response.json()['FileStatuses']['FileStatus']:
+                fileName = {fileStatus['pathSuffix']: fileStatus['type']}
+                self.filePaths.update(fileName)
 
     def mkdir(self, directoryName):
         response = ""
@@ -39,18 +51,21 @@ class Web:
         url += f"{self.path}{fileName}?\\user.name={self.user}&op=CREATE&overwrite=true"
         print(url)
         file = f"{os.curdir}/{fileName}"
+        print(file)
         if not os.path.exists(file) & os.path.isfile(file):
             print("Такого файла нет.")
             return
         try:
-            response = requests.Session().put(url, headers={'content-type': 'application/octet-stream'})
-            newUrl = response.headers['location']
-            newResponse = requests.Session().put(newUrl, file)
+            response = requests.Session().put(url, file)
+            print(response)
+            # if response.status_code == http_client.TEMPORARY_REDIRECT:
+            #     newUrl = response.headers['location']
+            #     newResponse = requests.Session().put(newUrl, file)
+            #     if newResponse.status_code == http_client.CREATED:
+            #         print("Загрузка прошла успешно.")
+            #     else:
+            #         print("Произошла ошибка при загрузке.")
         except ConnectionError:
-            print("Произошла ошибка при загрузке.")
-        if newResponse.status_code == http_client.CREATED:
-            print("Загрузка прошла успешно.")
-        else:
             print("Произошла ошибка при загрузке.")
 
     def get(self, fileName):
@@ -61,8 +76,7 @@ class Web:
         print(url)
         file = f"{os.curdir}/{fileName}"
         try:
-            response = requests.Session().get(url)
-            print(response.headers)
+            response = requests.Session().get(url, allow_redirects=True)
             newUrl = response.headers['location']
             newResponse = requests.Session().get(newUrl)
             open(file, "wb").write(newResponse.content)
@@ -154,13 +168,8 @@ class Web:
             self.ls()
         elif name == "..":
             if len(self.queque) > 0:
-                print(self.path)
-                print(f"{self.queque[-1]}/")
-                self.path.count(f"{self.queque[-1]}/")
-                print(self.path)
-                print(f"{self.queque[-1]}/")
+                self.path = self.path.replace(f"{self.queque[-1]}/", "")
                 self.queque.pop(-1)
-                print(self.queque)
             else:
                 print("Достигнут корневой раздел")
         else:
