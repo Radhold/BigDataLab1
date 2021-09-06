@@ -52,11 +52,12 @@ class Web:
         print(url)
         file = f"{os.curdir}/{fileName}"
         print(file)
+        data = open(fileName, 'rb').read()
         if not os.path.exists(file) & os.path.isfile(file):
             print("Такого файла нет.")
             return
         try:
-            response = requests.Session().put(url, file)
+            response = requests.Session().put(url, data)
             print(response)
             # if response.status_code == http_client.TEMPORARY_REDIRECT:
             #     newUrl = response.headers['location']
@@ -71,18 +72,15 @@ class Web:
     def get(self, fileName):
         url = self.urlPattern
         newResponse = ""
-        # url += f"{self.path}{fileName}?\\user.name={self.user}&op=OPEN"
-        url = "http://localhost:50070/webhdfs/v1/user/radhold/wordcount/input/file01?\\user.name=radhold&op=OPEN"
+        url += f"{self.path}{fileName}?\\user.name={self.user}&op=OPEN"
         print(url)
         file = f"{os.curdir}/{fileName}"
         try:
             response = requests.Session().get(url, allow_redirects=True)
-            newUrl = response.headers['location']
-            newResponse = requests.Session().get(newUrl)
-            open(file, "wb").write(newResponse.content)
+            open(file, "wb").write(response.content)
         except ConnectionError:
             print("Произошла ошибка при соединении.")
-        if newResponse.status_code == http_client.CREATED:
+        if response.status_code == http_client.OK:
             print("Загрузка на устройство прошла успешно.")
         else:
             print("Произошла ошибка при загрузке.")
@@ -206,6 +204,8 @@ class Web:
                 os.chdir(os.curdir)
             except NotADirectoryError:
                 print("Не директория.")
+            except FileNotFoundError:
+                print("Не найден файл или директория.")
             print(os.curdir)
             self.lls()
         elif name == "..":
