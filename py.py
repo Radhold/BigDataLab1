@@ -12,7 +12,7 @@ class Web:
         self.filePaths = {}
         self.path = path
         self.localPath = os.getcwd()
-        print(self.localPath)
+        # print(self.localPath)
         self.host = host
         self.port = port
         self.user = user
@@ -32,10 +32,13 @@ class Web:
                 self.filePaths.update(fileName)
 
     def mkdir(self, directoryName):
+        if directoryName == "":
+            print("Нет названия директории")
+            return
         response = ""
         url = self.urlPattern
         url += f"{self.path}{directoryName}?\\user.name={self.user}&op=MKDIRS"
-        print(url)
+        # print(url)
         try:
             response = requests.Session().put(url)
         except ConnectionError:
@@ -46,19 +49,21 @@ class Web:
             print("Произошла ошибка при создании.")
 
     def put(self, fileName):
+        if fileName == "":
+            print("Нет названия файла")
+            return
         url = self.urlPattern
-        newResponse = ""
         url += f"{self.path}{fileName}?\\user.name={self.user}&op=CREATE&overwrite=true"
-        print(url)
+        # print(url)
         file = f"{os.curdir}/{fileName}"
-        print(file)
-        data = open(fileName, 'rb').read()
+        # print(file)
+        data = open(file, 'rb').read()
         if not os.path.exists(file) & os.path.isfile(file):
             print("Такого файла нет.")
             return
         try:
             response = requests.Session().put(url, data)
-            print(response)
+            # print(response)
             # if response.status_code == http_client.TEMPORARY_REDIRECT:
             #     newUrl = response.headers['location']
             #     newResponse = requests.Session().put(newUrl, file)
@@ -70,10 +75,13 @@ class Web:
             print("Произошла ошибка при загрузке.")
 
     def get(self, fileName):
+        if fileName == "":
+            print("Нет названия файла")
+            return
         url = self.urlPattern
-        newResponse = ""
+        response = ""
         url += f"{self.path}{fileName}?\\user.name={self.user}&op=OPEN"
-        print(url)
+        # print(url)
         file = f"{os.curdir}/{fileName}"
         try:
             response = requests.Session().get(url, allow_redirects=True)
@@ -86,21 +94,23 @@ class Web:
             print("Произошла ошибка при загрузке.")
 
     def append(self, newFile, hdfsFile):
+        if newFile == "" or hdfsFile == "":
+            print("Нет названия файла")
+            return
         url = self.urlPattern
-        newResponse = ""
+        response = ""
         url += f"{self.path}{hdfsFile}?\\user.name={self.user}&op=APPEND"
-        print(url)
+        # print(url)
         file = f"{os.curdir}/{newFile}"
+        data = open(file, 'rb').read()
         if not os.path.exists(file) & os.path.isfile(file):
             print("Такого файла нет или Вы указали директорию.")
             return
         try:
-            response = requests.Session().post(url)
-            newUrl = response.headers['location']
-            newResponse = requests.Session().put(newUrl, file)
+            response = requests.Session().post(url, data)
         except ConnectionError:
             print("Произошла ошибка при объединении.")
-        if newResponse.status_code == http_client.OK:
+        if response.status_code == http_client.OK:
             print("Объединение прошла успешно.")
         else:
             print("Произошла ошибка при объединении.")
@@ -124,10 +134,13 @@ class Web:
     #         print("Произошла ошибка при переименовании.")
 
     def delete(self, fileName):
+        if fileName == "":
+            print("Нет названия файла")
+            return
         response = ""
         url = self.urlPattern
         url += f"{self.path}{fileName}?\\user.name={self.user}&op=DELETE"
-        print(url)
+        # print(url)
         try:
             response = requests.Session().delete(url)
         except ConnectionError:
@@ -141,7 +154,7 @@ class Web:
         url = self.urlPattern
         response = ""
         url += f"{self.path}?\\user.name={self.user}&op=LISTSTATUS"
-        print(url)
+        # print(url)
         self.filePaths.clear()
         try:
             response = requests.Session().get(url)
@@ -151,9 +164,25 @@ class Web:
             print("Вывод прошел успешно.")
             for fileStatus in response.json()['FileStatuses']['FileStatus']:
                 fileName = {fileStatus['pathSuffix']: fileStatus['type']}
-                print(fileName)
+                # print(fileName)
                 self.filePaths.update(fileName)
-            print(*self.filePaths)
+            files = []
+            dirs = []
+            for key in self.filePaths:
+                if self.filePaths[key] == "FILE":
+                    files.append(key)
+                elif self.filePaths[key] == "DIRECTORY":
+                    dirs.append(key)
+            if len(dirs) > 0:
+                print("Директории: ")
+                print(*dirs)
+            else:
+                print("Директорий нет.")
+            if len(files) > 0:
+                print("Файлы: ")
+                print(*files)
+            else:
+                print("Файлов нет.")
         else:
             print("Произошла ошибка при выводе.")
 
@@ -166,7 +195,8 @@ class Web:
             self.ls()
         elif name == "..":
             if len(self.queque) > 0:
-                self.path = self.path.replace(f"{self.queque[-1]}/", "")
+                # self.path = self.path.replace(f"{self.queque[-1]}/", "")
+                self.path = "".join(self.path.rsplit(self.queque[-1], 1))
                 self.queque.pop(-1)
             else:
                 print("Достигнут корневой раздел")
@@ -187,27 +217,36 @@ class Web:
                         files.append(i)
                     elif os.path.isdir(f"{path}/{i}"):
                         dirs.append(i)
-                print("Директории: ")
-                print(*dirs)
-                print("Файлы: ")
-                print(*files)
+                if len(dirs) > 0:
+                    print("Директории: ")
+                    print(*dirs)
+                else:
+                    print("Директорий нет.")
+                if len(files) > 0:
+                    print("Файлы: ")
+                    print(*files)
+                else:
+                    print("Файлов нет.")
             else:
                 print("Директория пуста.")
         except FileNotFoundError:
             print("Директория не найдена")
 
     def lcd(self, name):
-        if name != "..":
+        if not os.path.exists(os.curdir + f"/{name}"):
+            print("Нет такого файла или директории.")
+            return
+        if name != ".." and name != "":
             os.pardir = os.curdir
             os.curdir += f"/{name}"
             try:
                 os.chdir(os.curdir)
+                print(os.curdir)
+                self.lls()
             except NotADirectoryError:
                 print("Не директория.")
             except FileNotFoundError:
                 print("Не найден файл или директория.")
-            print(os.curdir)
-            self.lls()
         elif name == "..":
             if os.curdir != self.localPath:
                 os.chdir(os.pardir)
@@ -215,8 +254,6 @@ class Web:
                 self.lls()
             else:
                 print("Корневая папка.")
-        else:
-            print("Нет такого файла или директории")
 
 
 localHost = ""
@@ -234,25 +271,29 @@ if __name__ == "__main__":
     else:
         print("Ошибка. Неверное количество параметров.")
         sys.exit(1)
-web = Web(host=localHost, port=localPort, user=localUser)
+try:
+    web = Web(host=localHost, port=localPort, user=localUser)
+except ConnectionError:
+    print("Нет соединения с сервером")
+    sys.exit(1)
 while True:
     defName = input("Введите название функции: ").lower()
     if defName == "mkdir":
         dirName = input("Введите название директории, которую хотите создать: ")
-        web.mkdir(dirName)
+        web.mkdir(dirName.strip())
     elif defName == "put":
-        localFile = input("Введите название локального файла, который хотите загрузить ")
-        web.put(localFile)
+        localFile = input("Введите название локального файла, который хотите загрузить: ")
+        web.put(localFile.strip())
     elif defName == "get":
-        loadFile = input("Введите название файла, который хотите загрузить ")
-        web.get(loadFile)
+        loadFile = input("Введите название файла, который хотите загрузить: ")
+        web.get(loadFile.strip())
     elif defName == "append":
         oldName = input("Введите имя файла, в который хотите дописать: ")
-        newName = input("Введите имя файла, из которого хотите дописать")
-        web.append(newName, oldName)
+        newName = input("Введите имя файла, из которого хотите дописать: ")
+        web.append(newName.strip(), oldName.strip())
     elif defName == "delete":
         deleteName = input("Введите имя удаляемого объекта: ")
-        web.delete(deleteName)
+        web.delete(deleteName.strip())
     elif defName == "ls":
         web.ls()
     elif defName == "cd":
@@ -262,7 +303,7 @@ while True:
         web.lls()
     elif defName == "lcd":
         lcdName = input("Введите название директории: ")
-        web.lcd(lcdName)
+        web.lcd(lcdName.strip())
     elif defName == "exit":
         print("Выход")
         sys.exit(1)
