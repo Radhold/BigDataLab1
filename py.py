@@ -62,15 +62,15 @@ class Web:
             print("Такого файла нет.")
             return
         try:
-            response = requests.Session().put(url, data)
+            response = requests.Session().put(url, allow_redirects=False)
             # print(response)
-            # if response.status_code == http_client.TEMPORARY_REDIRECT:
-            #     newUrl = response.headers['location']
-            #     newResponse = requests.Session().put(newUrl, file)
-            #     if newResponse.status_code == http_client.CREATED:
-            #         print("Загрузка прошла успешно.")
-            #     else:
-            #         print("Произошла ошибка при загрузке.")
+            if response.status_code == http_client.TEMPORARY_REDIRECT:
+                newUrl = response.headers['location']
+                newResponse = requests.Session().put(newUrl, data)
+                if newResponse.status_code == http_client.CREATED:
+                    print("Загрузка прошла успешно.")
+                else:
+                    print("Произошла ошибка при загрузке.")
         except ConnectionError:
             print("Произошла ошибка при загрузке.")
 
@@ -102,17 +102,20 @@ class Web:
         url += f"{self.path}{hdfsFile}?\\user.name={self.user}&op=APPEND"
         # print(url)
         file = f"{os.curdir}/{newFile}"
-        data = open(file, 'rb').read()
         if not os.path.exists(file) & os.path.isfile(file):
             print("Такого файла нет или Вы указали директорию.")
             return
         try:
-            response = requests.Session().post(url, data)
+            data = open(file, 'rb').read()
+            response = requests.Session().post(url, allow_redirects=False)
+            if response.status_code == http_client.TEMPORARY_REDIRECT:
+                newUrl = response.headers['location']
+                newResponse = requests.Session().post(newUrl, data)
+                if newResponse.status_code == http_client.OK:
+                    print("Объединение прошла успешно.")
+                else:
+                    print("Произошла ошибка при объединении.")
         except ConnectionError:
-            print("Произошла ошибка при объединении.")
-        if response.status_code == http_client.OK:
-            print("Объединение прошла успешно.")
-        else:
             print("Произошла ошибка при объединении.")
 
     # def rename(url, newName, oldName):
@@ -206,7 +209,6 @@ class Web:
     def lls(self):
         path = os.getcwd()
         os.curdir = path
-        print(os.curdir)
         try:
             pathList = os.listdir(path)
             if len(pathList) != 0:
@@ -241,8 +243,6 @@ class Web:
             os.curdir += f"/{name}"
             try:
                 os.chdir(os.curdir)
-                print(os.curdir)
-                self.lls()
             except NotADirectoryError:
                 print("Не директория.")
             except FileNotFoundError:
@@ -277,33 +277,57 @@ except ConnectionError:
     print("Нет соединения с сервером")
     sys.exit(1)
 while True:
-    defName = input("Введите название функции: ").lower()
+    defParams = input("Введите название функции и параметры для нее: ").strip()
+    defParams = defParams.split(" ")
+    defName = defParams[0]
     if defName == "mkdir":
-        dirName = input("Введите название директории, которую хотите создать: ")
-        web.mkdir(dirName.strip())
+        try:
+            dirName = defParams[1]
+            web.mkdir(dirName.strip())
+        except IndexError:
+            print("Вы ввели не все параметры")
     elif defName == "put":
-        localFile = input("Введите название локального файла, который хотите загрузить: ")
-        web.put(localFile.strip())
+        try:
+            localFile = defParams[1]
+            web.put(localFile.strip())
+        except IndexError:
+            print("Вы ввели не все параметры")
     elif defName == "get":
-        loadFile = input("Введите название файла, который хотите загрузить: ")
-        web.get(loadFile.strip())
+        try:
+            loadFile = defParams[1]
+            web.get(loadFile.strip())
+        except IndexError:
+            print("Вы ввели не все параметры")
+
     elif defName == "append":
-        oldName = input("Введите имя файла, в который хотите дописать: ")
-        newName = input("Введите имя файла, из которого хотите дописать: ")
-        web.append(newName.strip(), oldName.strip())
+        try:
+            oldName = defParams[1]
+            newName = defParams[2]
+            web.append(newName.strip(), oldName.strip())
+        except IndexError:
+            print("Вы ввели не все параметры")
     elif defName == "delete":
-        deleteName = input("Введите имя удаляемого объекта: ")
-        web.delete(deleteName.strip())
+        try:
+            deleteName = defParams[1]
+            web.delete(deleteName.strip())
+        except IndexError:
+            print("Вы ввели не все параметры")
     elif defName == "ls":
         web.ls()
     elif defName == "cd":
-        cdName = input("Введите название директории: ")
-        web.cd(cdName)
+        try:
+            cdName = defParams[1]
+            web.cd(cdName)
+        except IndexError:
+            print("Вы ввели не все параметры")
     elif defName == "lls":
         web.lls()
     elif defName == "lcd":
-        lcdName = input("Введите название директории: ")
-        web.lcd(lcdName.strip())
+        try:
+            lcdName = defParams[1]
+            web.lcd(lcdName.strip())
+        except IndexError:
+            print("Вы ввели не все параметры")
     elif defName == "exit":
         print("Выход")
         sys.exit(1)
